@@ -3,7 +3,7 @@
 ## 1. What Was Built
 **Basha — Voice AI** is an interactive, browser-based voice conversation application built for the **100x AI Agent Team Stage 1 Assessment**. It represents **Shaik Rameez Basha** (AI/ML, GenAI, and Full-Stack Engineer) in first-person voice and text dialogue.
 
-- **Public Production URL**: [https://ac76d7375827d9.lhr.life](https://ac76d7375827d9.lhr.life)
+- **Public Production URL**: [https://rated-place-others-exhibitions.trycloudflare.com](https://rated-place-others-exhibitions.trycloudflare.com)
 - **GitHub Repository**: [https://github.com/jayanthdevisetty/basha-voice-ai](https://github.com/jayanthdevisetty/basha-voice-ai)
 
 An evaluator can visit the public URL, click **Start Conversation**, grant microphone access, and speak naturally. The application processes speech in real time, generates an answer grounded in Rameez's verified personal knowledge base, and speaks the answer back using high-fidelity browser text-to-speech with automatic hands-free turn taking.
