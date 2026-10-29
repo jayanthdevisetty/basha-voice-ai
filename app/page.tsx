@@ -308,13 +308,13 @@ export default function Home() {
 
                 {/* Concentric Acoustic Pulse Node */}
                 <div
-                  className="my-space-xl relative flex items-center justify-center group cursor-pointer select-none"
+                  className="my-6 relative flex flex-col items-center justify-center group cursor-pointer select-none w-56 h-56 mx-auto"
                   id="mic-node-wrapper"
                   onClick={handleStartLanding}
                 >
-                  <div className="absolute w-44 h-44 rounded-full bg-surface-container-low/70 transition-transform duration-500 ease-out group-hover:scale-105" />
-                  <div className="absolute w-36 h-36 rounded-full bg-surface-container transition-transform duration-300 ease-out group-hover:scale-105" />
-                  <div className="absolute w-28 h-28 rounded-full bg-surface-container-high transition-transform duration-200" />
+                  <div className="absolute w-44 h-44 rounded-full bg-surface-container-low/70 transition-transform duration-500 ease-out group-hover:scale-105 pointer-events-none" />
+                  <div className="absolute w-36 h-36 rounded-full bg-surface-container transition-transform duration-300 ease-out group-hover:scale-105 pointer-events-none" />
+                  <div className="absolute w-28 h-28 rounded-full bg-surface-container-high transition-transform duration-200 pointer-events-none" />
                   <button
                     aria-label="Toggle voice recording"
                     className="relative z-10 w-20 h-20 rounded-full bg-surface-container-lowest shadow-xl flex items-center justify-center transition-all duration-300 group-hover:bg-primary group-hover:shadow-2xl active:scale-95 cursor-pointer"
@@ -327,10 +327,10 @@ export default function Home() {
                       mic
                     </span>
                   </button>
-                  <div className="absolute -bottom-8 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-surface-container-lowest shadow-sm">
+                  <div className="absolute bottom-2 flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-lowest shadow-sm z-20 whitespace-nowrap border border-surface-container-high/60">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E]" id="readiness-dot" />
                     <span
-                      className="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-medium"
+                      className="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-medium whitespace-nowrap"
                       id="readiness-text"
                     >
                       Acoustic Model Primed
@@ -339,7 +339,7 @@ export default function Home() {
                 </div>
 
                 {/* Start Conversation CTA Button */}
-                <div className="w-full flex flex-col items-center gap-3">
+                <div className="w-full flex flex-col items-center gap-3 mt-4">
                   <button
                     onClick={handleStartLanding}
                     className="w-full sm:w-auto min-w-[280px] px-8 py-3.5 rounded-full bg-on-background hover:bg-inverse-surface text-on-primary flex items-center justify-center gap-3 shadow-md transition-all active:scale-[0.98] cursor-pointer"
