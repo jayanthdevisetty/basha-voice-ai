@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Basha — Voice AI",
+  title: "Basha — Voice AI | Shaik Rameez Basha",
   description:
     "Have a conversation with my AI voice agent. Built by Shaik Rameez Basha for the 100x AI Agent Team Stage 1 Assessment.",
   keywords: [
@@ -11,6 +11,7 @@ export const metadata: Metadata = {
     "AI Agent",
     "100x AI",
     "Generative AI",
+    "Full-Stack Engineer",
     "FastAPI",
     "Next.js",
   ],
@@ -29,8 +30,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col antialiased selection:bg-indigo-500/30 selection:text-indigo-200">
+    <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+      </head>
+      <body className="bg-surface text-on-surface min-h-screen flex flex-col selection:bg-primary-fixed selection:text-on-primary-fixed">
         {children}
       </body>
     </html>
