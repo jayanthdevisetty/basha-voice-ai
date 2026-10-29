@@ -3,6 +3,9 @@
 > **Have a conversation with my AI voice agent.**  
 > Built for the **100x AI Agent Team Stage 1 Assessment** by **Shaik Rameez Basha**.
 
+- 🌐 **Live Public URL**: [https://ac76d7375827d9.lhr.life](https://ac76d7375827d9.lhr.life)
+- 📦 **GitHub Repository**: [https://github.com/jayanthdevisetty/basha-voice-ai](https://github.com/jayanthdevisetty/basha-voice-ai)
+
 ---
 
 ## 🌟 Overview
