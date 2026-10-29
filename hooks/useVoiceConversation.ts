@@ -123,16 +123,17 @@ export function useVoiceConversation() {
         (v) => v.lang.startsWith("en-") || v.lang === "en"
       );
 
+      // Ranked preference for modern neural, natural, and enhanced voices
       const preferred =
+        englishVoices.find((v) => v.name.includes("Online (Natural)") || v.name.includes("Natural")) ||
         englishVoices.find(
           (v) =>
+            v.name.includes("Google UK English Male") ||
             v.name.includes("Google US English") ||
-            v.name.includes("Natural") ||
-            v.name.includes("Samantha") ||
-            v.name.includes("David") ||
-            v.name.includes("Daniel") ||
-            v.name.includes("Oliver")
+            v.name.includes("Google UK English Female")
         ) ||
+        englishVoices.find((v) => v.name.includes("Enhanced") || v.name.includes("Premium")) ||
+        englishVoices.find((v) => /ryan|guy|daniel|oliver|nathan|alex/i.test(v.name)) ||
         englishVoices.find((v) => v.lang === "en-US") ||
         englishVoices[0] ||
         voices[0];
@@ -271,7 +272,7 @@ export function useVoiceConversation() {
     isSpeakingRef.current = false;
   }, []);
 
-  // Play text via SpeechSynthesis
+  // Play text via SpeechSynthesis with sentence-level streaming playback
   const speakText = useCallback(
     (text: string, onComplete?: () => void) => {
       if (typeof window === "undefined" || !("speechSynthesis" in window)) {
@@ -281,33 +282,55 @@ export function useVoiceConversation() {
 
       stopSpeaking();
 
-      const utterance = new SpeechSynthesisUtterance(text);
-      if (selectedVoice) {
-        utterance.voice = selectedVoice;
+      // Chunk text into natural sentences for sub-300ms playback initiation
+      const sentences = text
+        .match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g)
+        ?.map((s) => s.trim())
+        .filter((s) => s.length > 0) || [text];
+
+      if (sentences.length === 0) {
+        onComplete?.();
+        return;
       }
-      utterance.rate = 1.05;
-      utterance.pitch = 1.0;
 
-      utterance.onstart = () => {
-        isSpeakingRef.current = true;
-        setState("speaking");
-        startKeepAlive();
+      let currentIdx = 0;
+      isSpeakingRef.current = true;
+      setState("speaking");
+      startKeepAlive();
+
+      const speakNextSentence = () => {
+        if (!isSpeakingRef.current || currentIdx >= sentences.length) {
+          isSpeakingRef.current = false;
+          stopKeepAlive();
+          onComplete?.();
+          return;
+        }
+
+        const sentenceText = sentences[currentIdx];
+        currentIdx++;
+
+        const utterance = new SpeechSynthesisUtterance(sentenceText);
+        if (selectedVoice) {
+          utterance.voice = selectedVoice;
+        }
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+
+        utterance.onend = () => {
+          speakNextSentence();
+        };
+
+        utterance.onerror = (e) => {
+          if (e.error !== "canceled" && e.error !== "interrupted") {
+            console.warn("SpeechSynthesis utterance error:", e.error);
+          }
+          speakNextSentence();
+        };
+
+        window.speechSynthesis.speak(utterance);
       };
 
-      utterance.onend = () => {
-        isSpeakingRef.current = false;
-        stopKeepAlive();
-        onComplete?.();
-      };
-
-      utterance.onerror = (e) => {
-        console.warn("SpeechSynthesis error:", e);
-        isSpeakingRef.current = false;
-        stopKeepAlive();
-        onComplete?.();
-      };
-
-      window.speechSynthesis.speak(utterance);
+      speakNextSentence();
     },
     [selectedVoice, stopSpeaking]
   );

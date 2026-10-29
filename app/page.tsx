@@ -4,10 +4,79 @@ import React, { useState, useEffect } from "react";
 import { useVoiceConversation, ConversationState } from "@/hooks/useVoiceConversation";
 import { MicPermissionBanner } from "@/components/MicPermissionBanner";
 
+type QuestionCategory = "all" | "architecture" | "superpower" | "growth" | "limits";
+
+interface PresetQuestion {
+  category: QuestionCategory;
+  tag: string;
+  label: string;
+  query: string;
+}
+
+const CATEGORIES: { id: QuestionCategory; label: string }[] = [
+  { id: "all", label: "All Questions" },
+  { id: "architecture", label: "Architecture & Systems" },
+  { id: "superpower", label: "Superpower & Execution" },
+  { id: "growth", label: "Growth & Self-Awareness" },
+  { id: "limits", label: "Factuality & Limits" },
+];
+
+const QUESTION_PRESETS: PresetQuestion[] = [
+  {
+    category: "all",
+    tag: "JOURNEY",
+    label: "Tell me about your journey",
+    query: "What should we know about your life story in a few sentences?",
+  },
+  {
+    category: "superpower",
+    tag: "SUPERPOWER",
+    label: "What's your biggest strength as an engineer?",
+    query: "What is your #1 superpower as an engineer?",
+  },
+  {
+    category: "growth",
+    tag: "GROWTH",
+    label: "What are the top 3 areas you'd like to grow in?",
+    query: "What are the top 3 areas you'd like to grow in?",
+  },
+  {
+    category: "architecture",
+    tag: "ROTOR DYN",
+    label: "What's the hardest thing you've built on RotorDyn?",
+    query: "Tell me about RotorDyn and the hardest engineering challenge you faced.",
+  },
+  {
+    category: "growth",
+    tag: "CULTURE",
+    label: "What misconception do coworkers have about you?",
+    query: "What misconception do your coworkers have about you?",
+  },
+  {
+    category: "architecture",
+    tag: "RELIABILITY",
+    label: "How did you solve distributed caching in AfterQuery?",
+    query: "How did you handle asynchronous caching and race conditions in AfterQuery?",
+  },
+  {
+    category: "superpower",
+    tag: "EXECUTION",
+    label: "How do you push your boundaries and limits?",
+    query: "How do you push your boundaries and limits as a software engineer?",
+  },
+  {
+    category: "limits",
+    tag: "FACTUALITY",
+    label: "Verify strict background boundaries (VP at Google Probe)",
+    query: "Tell me about your time working as a VP at Google in New York.",
+  },
+];
+
 export default function Home() {
   const [hasStarted, setHasStarted] = useState(false);
   const [activePlaybackId, setActivePlaybackId] = useState<string | null>(null);
   const [inputText, setInputText] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<QuestionCategory>("all");
 
   const {
     state,
@@ -89,6 +158,12 @@ export default function Home() {
       setActivePlaybackId((curr) => (curr === id ? null : curr));
     }, durationMs);
   };
+
+  // Filtered preset questions for evaluator
+  const filteredQuestions =
+    selectedCategory === "all"
+      ? QUESTION_PRESETS.slice(0, 6)
+      : QUESTION_PRESETS.filter((q) => q.category === selectedCategory);
 
   // State configurations matching Stitch
   const statesConfig: Record<
@@ -283,7 +358,7 @@ export default function Home() {
                 </svg>
               </div>
 
-              <div className="w-full max-w-[640px] mx-auto flex flex-col items-center text-center">
+              <div className="w-full max-w-[680px] mx-auto flex flex-col items-center text-center">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container-low shadow-sm">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                   <span className="font-label-sm text-label-sm tracking-[0.08em] uppercase text-on-surface-variant font-medium">
@@ -306,15 +381,33 @@ export default function Home() {
                   </p>
                 </div>
 
-                {/* Concentric Acoustic Pulse Node */}
+                {/* Concentric Acoustic Pulse Node with Live Web Audio Coupling */}
                 <div
                   className="my-6 relative flex flex-col items-center justify-center group cursor-pointer select-none w-56 h-56 mx-auto"
                   id="mic-node-wrapper"
                   onClick={handleStartLanding}
                 >
-                  <div className="absolute w-44 h-44 rounded-full bg-surface-container-low/70 transition-transform duration-500 ease-out group-hover:scale-105 pointer-events-none" />
-                  <div className="absolute w-36 h-36 rounded-full bg-surface-container transition-transform duration-300 ease-out group-hover:scale-105 pointer-events-none" />
-                  <div className="absolute w-28 h-28 rounded-full bg-surface-container-high transition-transform duration-200 pointer-events-none" />
+                  <div
+                    className="absolute rounded-full bg-surface-container-low/70 transition-all duration-150 ease-out group-hover:scale-105 pointer-events-none"
+                    style={{
+                      width: `${176 + (state === "listening" ? audioLevel * 40 : 0)}px`,
+                      height: `${176 + (state === "listening" ? audioLevel * 40 : 0)}px`,
+                    }}
+                  />
+                  <div
+                    className="absolute rounded-full bg-surface-container transition-all duration-100 ease-out group-hover:scale-105 pointer-events-none"
+                    style={{
+                      width: `${144 + (state === "listening" ? audioLevel * 30 : 0)}px`,
+                      height: `${144 + (state === "listening" ? audioLevel * 30 : 0)}px`,
+                    }}
+                  />
+                  <div
+                    className="absolute rounded-full bg-surface-container-high transition-all duration-75 ease-out pointer-events-none"
+                    style={{
+                      width: `${112 + (state === "listening" ? audioLevel * 20 : 0)}px`,
+                      height: `${112 + (state === "listening" ? audioLevel * 20 : 0)}px`,
+                    }}
+                  />
                   <button
                     aria-label="Toggle voice recording"
                     className="relative z-10 w-20 h-20 rounded-full bg-surface-container-lowest shadow-xl flex items-center justify-center transition-all duration-300 group-hover:bg-primary group-hover:shadow-2xl active:scale-95 cursor-pointer"
@@ -364,65 +457,53 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Try Asking Prompt Chips */}
+                {/* Categorized Evaluator Question Matrix */}
                 <div className="mt-space-xl w-full flex flex-col items-center">
                   <div className="flex items-center gap-2 mb-space-sm text-secondary font-label-sm text-label-sm uppercase tracking-wider">
                     <span className="material-symbols-outlined text-[15px] text-primary">
                       chat_bubble_outline
                     </span>
-                    <span>Try asking:</span>
+                    <span>Evaluator Question Matrix:</span>
                   </div>
+
+                  {/* Category Filter Pills */}
+                  <div className="flex flex-wrap items-center justify-center gap-1.5 mb-3.5 max-w-xl">
+                    {CATEGORIES.map((cat) => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setSelectedCategory(cat.id)}
+                        className={`px-3 py-1 rounded-full text-label-sm font-label-sm transition-all cursor-pointer ${
+                          selectedCategory === cat.id
+                            ? "bg-primary text-on-primary font-semibold shadow-xs"
+                            : "bg-surface-container-low text-secondary hover:text-on-surface hover:bg-surface-container"
+                        }`}
+                      >
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Question Prompt Chips */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
-                    <button
-                      onClick={() =>
-                        handleTopicClick("What should we know about your life story in a few sentences?")
-                      }
-                      className="prompt-chip text-left p-3.5 rounded-xl bg-surface-container-low hover:bg-surface-container transition-all group shadow-sm flex items-start justify-between cursor-pointer"
-                    >
-                      <span className="font-body-md text-body-md text-on-surface group-hover:text-primary transition-colors">
-                        Tell me about your journey
-                      </span>
-                      <span className="material-symbols-outlined text-[18px] text-on-surface-variant group-hover:translate-x-0.5 transition-transform">
-                        arrow_forward
-                      </span>
-                    </button>
-                    <button
-                      onClick={() => handleTopicClick("What is your #1 superpower?")}
-                      className="prompt-chip text-left p-3.5 rounded-xl bg-surface-container-low hover:bg-surface-container transition-all group shadow-sm flex items-start justify-between cursor-pointer"
-                    >
-                      <span className="font-body-md text-body-md text-on-surface group-hover:text-primary transition-colors">
-                        What's your biggest strength?
-                      </span>
-                      <span className="material-symbols-outlined text-[18px] text-on-surface-variant group-hover:translate-x-0.5 transition-transform">
-                        arrow_forward
-                      </span>
-                    </button>
-                    <button
-                      onClick={() => handleTopicClick("What are the top 3 areas you'd like to grow in?")}
-                      className="prompt-chip text-left p-3.5 rounded-xl bg-surface-container-low hover:bg-surface-container transition-all group shadow-sm flex items-start justify-between cursor-pointer"
-                    >
-                      <span className="font-body-md text-body-md text-on-surface group-hover:text-primary transition-colors">
-                        What are you trying to improve?
-                      </span>
-                      <span className="material-symbols-outlined text-[18px] text-on-surface-variant group-hover:translate-x-0.5 transition-transform">
-                        arrow_forward
-                      </span>
-                    </button>
-                    <button
-                      onClick={() =>
-                        handleTopicClick(
-                          "Tell me about RotorDyn and what was the hardest engineering challenge you faced."
-                        )
-                      }
-                      className="prompt-chip text-left p-3.5 rounded-xl bg-surface-container-low hover:bg-surface-container transition-all group shadow-sm flex items-start justify-between cursor-pointer"
-                    >
-                      <span className="font-body-md text-body-md text-on-surface group-hover:text-primary transition-colors">
-                        What's the hardest thing you've built?
-                      </span>
-                      <span className="material-symbols-outlined text-[18px] text-on-surface-variant group-hover:translate-x-0.5 transition-transform">
-                        arrow_forward
-                      </span>
-                    </button>
+                    {filteredQuestions.map((q, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleTopicClick(q.query)}
+                        className="prompt-chip text-left p-3.5 rounded-xl bg-surface-container-low hover:bg-surface-container transition-all group shadow-sm flex items-start justify-between cursor-pointer border border-surface-container-high/40"
+                      >
+                        <div className="flex flex-col pr-2">
+                          <span className="font-mono text-[10px] text-primary font-semibold tracking-wider">
+                            [{q.tag}]
+                          </span>
+                          <span className="font-body-md text-body-md text-on-surface group-hover:text-primary transition-colors mt-0.5">
+                            {q.label}
+                          </span>
+                        </div>
+                        <span className="material-symbols-outlined text-[18px] text-on-surface-variant group-hover:translate-x-0.5 group-hover:text-primary transition-transform shrink-0">
+                          arrow_forward
+                        </span>
+                      </button>
+                    ))}
                   </div>
                 </div>
 
@@ -452,7 +533,7 @@ export default function Home() {
                       Latency Budget
                     </span>
                     <span className="font-label-sm text-label-sm text-on-surface-variant">
-                      Speech-to-Speech &lt; 380ms response envelope
+                      Speech-to-Speech &lt; 380ms response envelope • Sub-300ms First Spoken Sentence
                     </span>
                   </div>
                 </div>
@@ -780,20 +861,31 @@ export default function Home() {
 
                 {/* Center-Bottom Voice Control Hub from Stitch */}
                 <div className="w-full mt-space-xl pt-space-lg flex flex-col items-center">
-                  {/* Concentric Acoustic Pulse Node */}
+                  {/* Concentric Acoustic Pulse Node with Live Web Audio Coupling */}
                   <div className="relative flex items-center justify-center p-6">
                     <div
-                      className={`absolute w-28 h-28 rounded-full bg-primary/10 transition-all duration-700 ease-out ${
-                        state === "speaking" || state === "listening"
-                          ? "animate-ping opacity-40"
-                          : "opacity-0"
-                      }`}
+                      className="absolute rounded-full bg-primary/10 transition-all duration-100 ease-out pointer-events-none"
+                      style={{
+                        width: `${112 + (state === "listening" || state === "speaking" ? audioLevel * 50 : 0)}px`,
+                        height: `${112 + (state === "listening" || state === "speaking" ? audioLevel * 50 : 0)}px`,
+                        opacity:
+                          state === "speaking" || state === "listening"
+                            ? 0.35 + audioLevel * 0.45
+                            : 0,
+                        transform: `scale(${
+                          1 + (state === "listening" || state === "speaking" ? audioLevel * 0.25 : 0)
+                        })`,
+                      }}
                       id="mic-ring-outer"
                     />
                     <div
-                      className={`absolute w-20 h-20 rounded-full bg-primary/15 transition-all duration-500 ${
-                        state === "speaking" || state === "listening" ? "scale-105" : "scale-100"
-                      }`}
+                      className="absolute rounded-full bg-primary/15 transition-all duration-75 ease-out pointer-events-none"
+                      style={{
+                        width: `${80 + (state === "listening" || state === "speaking" ? audioLevel * 35 : 0)}px`,
+                        height: `${80 + (state === "listening" || state === "speaking" ? audioLevel * 35 : 0)}px`,
+                        opacity:
+                          state === "speaking" || state === "listening" ? 0.4 + audioLevel * 0.5 : 0,
+                      }}
                       id="mic-ring-inner"
                     />
                     <button
@@ -832,42 +924,17 @@ export default function Home() {
                     </span>
                   </div>
 
-                  {/* Secondary Prompt Chips in Active Session */}
+                  {/* Question Presets in Active Session */}
                   <div className="flex flex-wrap items-center justify-center gap-2 mt-4 max-w-xl">
-                    <button
-                      onClick={() =>
-                        handleTopicClick("What should we know about your life story in a few sentences?")
-                      }
-                      className="text-xs px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container text-secondary hover:text-on-surface transition-colors cursor-pointer"
-                    >
-                      Life story
-                    </button>
-                    <button
-                      onClick={() => handleTopicClick("What is your #1 superpower?")}
-                      className="text-xs px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container text-secondary hover:text-on-surface transition-colors cursor-pointer"
-                    >
-                      #1 Superpower
-                    </button>
-                    <button
-                      onClick={() => handleTopicClick("What are the top 3 areas you'd like to grow in?")}
-                      className="text-xs px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container text-secondary hover:text-on-surface transition-colors cursor-pointer"
-                    >
-                      Growth areas
-                    </button>
-                    <button
-                      onClick={() => handleTopicClick("What misconception do coworkers have about you?")}
-                      className="text-xs px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container text-secondary hover:text-on-surface transition-colors cursor-pointer"
-                    >
-                      Coworker misconceptions
-                    </button>
-                    <button
-                      onClick={() =>
-                        handleTopicClick("Tell me about RotorDyn and the vibration telemetry architecture.")
-                      }
-                      className="text-xs px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container text-secondary hover:text-on-surface transition-colors cursor-pointer"
-                    >
-                      RotorDyn Platform
-                    </button>
+                    {QUESTION_PRESETS.map((q, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleTopicClick(q.query)}
+                        className="text-xs px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container text-secondary hover:text-on-surface transition-colors cursor-pointer border border-surface-container-high/30"
+                      >
+                        {q.label}
+                      </button>
+                    ))}
                   </div>
 
                   {/* Text Input Fallback Bar */}
