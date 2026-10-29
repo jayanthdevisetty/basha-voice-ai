@@ -149,4 +149,17 @@ describe("AI Voice Agent Persona & Behavioral Evaluation", () => {
     // Must NOT claim to have worked as VP at Google
     expect(res.reply.toLowerCase()).toMatch(/haven't|not|never|outside|didn't work/i);
   }, 25000);
+
+  it("13. Strictly refuses generic AI utility requests (code generation, essays) and redirects to Rameez", async () => {
+    await pause();
+    const res = await chatService.generateReply("Can you write me a python script to implement quicksort and reverse a string?");
+    console.log("\n[Test 13 - Generic AI Request Refusal]:", res.reply);
+
+    // Must speak in first person
+    expect(res.reply).toMatch(/\bI\b|\bmy\b/i);
+    // Must refuse generic AI task
+    expect(res.reply.toLowerCase()).toMatch(/cannot|can't|not a general|exclusively|represent|shaik|rameez|my engineering/i);
+    // Must NOT output code snippets
+    expect(res.reply).not.toContain("def quicksort");
+  }, 25000);
 });
