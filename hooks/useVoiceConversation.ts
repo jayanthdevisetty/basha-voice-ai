@@ -14,9 +14,10 @@ export interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  latencyMs?: number;
+  model?: string;
 }
 
-// Global declaration for Web Speech API
 interface SpeechRecognitionEvent extends Event {
   results: SpeechRecognitionResultList;
   resultIndex: number;
@@ -55,15 +56,26 @@ export function useVoiceConversation() {
   const [continuousMode, setContinuousMode] = useState<boolean>(true);
   const [selectedVoice, setSelectedVoice] = useState<SpeechSynthesisVoice | null>(null);
   const [audioLevel, setAudioLevel] = useState<number>(0);
+  const [volumeDb, setVolumeDb] = useState<number>(-60);
+  const [lastLatencyMs, setLastLatencyMs] = useState<number | null>(null);
+  const [sessionSeconds, setSessionSeconds] = useState<number>(0);
+  const [activeModel, setActiveModel] = useState<string>("gemini-3.5-flash-lite");
 
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
   const recognitionActiveRef = useRef<boolean>(false);
   const isSpeakingRef = useRef<boolean>(false);
   const keepAliveIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const sessionTimerRef = useRef<NodeJS.Timeout | null>(null);
   const latestTranscriptRef = useRef<string>("");
   const messagesRef = useRef<Message[]>([]);
   const stateRef = useRef<ConversationState>("idle");
+
+  // Web Audio API refs for real spectrum analysis
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
   // Keep refs updated for async callbacks
   useEffect(() => {
@@ -72,6 +84,29 @@ export function useVoiceConversation() {
 
   useEffect(() => {
     stateRef.current = state;
+  }, [state]);
+
+  // Session elapsed timer
+  useEffect(() => {
+    if (state !== "idle") {
+      if (!sessionTimerRef.current) {
+        sessionTimerRef.current = setInterval(() => {
+          setSessionSeconds((prev) => prev + 1);
+        }, 1000);
+      }
+    } else {
+      if (sessionTimerRef.current) {
+        clearInterval(sessionTimerRef.current);
+        sessionTimerRef.current = null;
+      }
+    }
+
+    return () => {
+      if (sessionTimerRef.current) {
+        clearInterval(sessionTimerRef.current);
+        sessionTimerRef.current = null;
+      }
+    };
   }, [state]);
 
   // Voice Selection for SpeechSynthesis
@@ -84,7 +119,6 @@ export function useVoiceConversation() {
       const voices = window.speechSynthesis.getVoices();
       if (!voices || voices.length === 0) return;
 
-      // Prefer high quality natural English voices (Google, Natural, Apple, Microsoft)
       const englishVoices = voices.filter(
         (v) => v.lang.startsWith("en-") || v.lang === "en"
       );
@@ -121,6 +155,92 @@ export function useVoiceConversation() {
     if (!SpeechRecognitionClass) {
       setIsSupported(false);
     }
+  }, []);
+
+  // Web Audio Context & Analyser Initialization
+  const setupAudioAnalyser = useCallback(async () => {
+    if (typeof window === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      return;
+    }
+
+    try {
+      if (!audioContextRef.current) {
+        const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        audioContextRef.current = new AudioContextClass();
+      }
+
+      if (audioContextRef.current.state === "suspended") {
+        await audioContextRef.current.resume();
+      }
+
+      if (!mediaStreamRef.current) {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
+        });
+        mediaStreamRef.current = stream;
+        setMicPermission("granted");
+      }
+
+      if (!analyserRef.current && audioContextRef.current && mediaStreamRef.current) {
+        const analyser = audioContextRef.current.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.75;
+        const source = audioContextRef.current.createMediaStreamSource(mediaStreamRef.current);
+        source.connect(analyser);
+        analyserRef.current = analyser;
+      }
+    } catch (err) {
+      console.warn("Could not initialize Web Audio Analyser:", err);
+    }
+  }, []);
+
+  // Continuous Audio Spectrum & Volume Loop via requestAnimationFrame
+  useEffect(() => {
+    const dataArray = new Uint8Array(128);
+
+    const updateAudioMetrics = () => {
+      if (analyserRef.current && stateRef.current === "listening") {
+        analyserRef.current.getByteFrequencyData(dataArray);
+
+        let sum = 0;
+        let peak = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          const val = dataArray[i];
+          sum += val;
+          if (val > peak) peak = val;
+        }
+
+        const avg = sum / dataArray.length;
+        const normalized = Math.min(1, avg / 80);
+        setAudioLevel(normalized);
+
+        // Convert to approximate dBFS (-60 to 0)
+        const db = peak > 0 ? 20 * Math.log10(peak / 255) : -60;
+        setVolumeDb(Math.max(-60, Math.round(db)));
+      } else if (stateRef.current === "speaking") {
+        // Synthesize dynamic voice waveform for TTS output
+        const simulated = Math.random() * 0.6 + 0.3;
+        setAudioLevel(simulated);
+        setVolumeDb(Math.round(-18 + Math.random() * 10));
+      } else {
+        setAudioLevel(0);
+        setVolumeDb(-60);
+      }
+
+      animationFrameRef.current = requestAnimationFrame(updateAudioMetrics);
+    };
+
+    animationFrameRef.current = requestAnimationFrame(updateAudioMetrics);
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
   }, []);
 
   // Stop speech synthesis keep-alive
@@ -165,7 +285,7 @@ export function useVoiceConversation() {
       if (selectedVoice) {
         utterance.voice = selectedVoice;
       }
-      utterance.rate = 1.05; // Slightly brisk, natural cadence
+      utterance.rate = 1.05;
       utterance.pitch = 1.0;
 
       utterance.onstart = () => {
@@ -198,7 +318,6 @@ export function useVoiceConversation() {
       const userMessageText = text.trim();
       if (!userMessageText) return;
 
-      // Add user message to history
       const userMessage: Message = {
         id: "msg-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4),
         role: "user",
@@ -211,6 +330,8 @@ export function useVoiceConversation() {
       setInterimTranscript("");
       latestTranscriptRef.current = "";
       setState("thinking");
+
+      const startTime = performance.now();
 
       try {
         const response = await fetch("/api/chat", {
@@ -227,6 +348,9 @@ export function useVoiceConversation() {
           }),
         });
 
+        const elapsed = Math.round(performance.now() - startTime);
+        setLastLatencyMs(elapsed);
+
         if (!response.ok) {
           const errData = await response.json().catch(() => ({}));
           throw new Error(errData.error || `Server responded with ${response.status}`);
@@ -234,19 +358,23 @@ export function useVoiceConversation() {
 
         const data = await response.json();
         const replyText = data.reply || "I didn't quite catch that. Could you say it again?";
+        if (data.model) {
+          setActiveModel(data.model);
+        }
 
         const botMessage: Message = {
           id: "msg-" + Date.now() + "-" + Math.random().toString(36).substr(2, 4),
           role: "assistant",
           content: replyText,
           timestamp: new Date(),
+          latencyMs: elapsed,
+          model: data.model || activeModel,
         };
 
         setMessages((prev) => [...prev, botMessage]);
 
         // Speak response out loud
         speakText(replyText, () => {
-          // If in continuous voice mode, automatically restart listening!
           if (continuousMode && stateRef.current !== "idle") {
             startListeningInternal();
           } else {
@@ -264,7 +392,7 @@ export function useVoiceConversation() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [continuousMode, speakText]
+    [continuousMode, speakText, activeModel]
   );
 
   // Internal listener starter
@@ -272,6 +400,7 @@ export function useVoiceConversation() {
     if (typeof window === "undefined") return;
 
     stopSpeaking();
+    setupAudioAnalyser();
 
     const SpeechRecognitionClass =
       (window as unknown as { SpeechRecognition?: ISpeechRecognitionConstructor }).SpeechRecognition ||
@@ -319,12 +448,11 @@ export function useVoiceConversation() {
           setInterimTranscript(currentText);
           latestTranscriptRef.current = currentText;
 
-          // Clear previous silence timer
           if (silenceTimerRef.current) {
             clearTimeout(silenceTimerRef.current);
           }
 
-          // Inactivity / silence detection: if user has spoken something and is quiet for 1.6s, submit
+          // Inactivity / silence detection: 1.5s silence triggers send
           silenceTimerRef.current = setTimeout(() => {
             if (latestTranscriptRef.current.trim().length > 0) {
               const toSend = latestTranscriptRef.current.trim();
@@ -333,7 +461,7 @@ export function useVoiceConversation() {
               }
               sendMessage(toSend);
             }
-          }, 1600);
+          }, 1500);
         }
       };
 
@@ -344,9 +472,8 @@ export function useVoiceConversation() {
           setErrorMessage("Microphone permission was denied. Please allow microphone access or type your question below.");
           setState("error");
         } else if (event.error === "no-speech") {
-          // Normal timeout if user was quiet; keep listening if in continuous mode
           if (stateRef.current === "listening" && continuousMode) {
-            // Keep state as listening
+            // Keep listening
           }
         } else if (event.error !== "aborted") {
           setErrorMessage(`Speech recognition error: ${event.error}`);
@@ -355,13 +482,11 @@ export function useVoiceConversation() {
 
       recognition.onend = () => {
         recognitionActiveRef.current = false;
-        // If we were listening and got ended without error, check if there was pending text
         if (stateRef.current === "listening") {
           if (latestTranscriptRef.current.trim().length > 0) {
             const toSend = latestTranscriptRef.current.trim();
             sendMessage(toSend);
           } else if (continuousMode) {
-            // Restart if user was still in conversation
             try {
               recognition.start();
             } catch {
@@ -380,32 +505,15 @@ export function useVoiceConversation() {
       setState("error");
       setErrorMessage("Could not activate microphone. Please check permissions or type below.");
     }
-  }, [continuousMode, sendMessage, stopSpeaking]);
+  }, [continuousMode, sendMessage, stopSpeaking, setupAudioAnalyser]);
 
-  // Start conversation user action (requests mic permission first)
+  // Start conversation user action
   const startConversation = useCallback(async () => {
     setErrorMessage(null);
     stopSpeaking();
-
-    if (typeof navigator !== "undefined" && navigator.mediaDevices?.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        setMicPermission("granted");
-        // Release the test stream
-        stream.getTracks().forEach((track) => track.stop());
-      } catch (err: unknown) {
-        console.warn("Mic permission request rejected:", err);
-        setMicPermission("denied");
-        setErrorMessage(
-          "Microphone access was denied. Please click the camera/mic icon in your browser address bar to allow it, or use the text box below."
-        );
-        setState("error");
-        return;
-      }
-    }
-
+    await setupAudioAnalyser();
     startListeningInternal();
-  }, [startListeningInternal, stopSpeaking]);
+  }, [setupAudioAnalyser, startListeningInternal, stopSpeaking]);
 
   // Stop conversation user action
   const endConversation = useCallback(() => {
@@ -440,6 +548,8 @@ export function useVoiceConversation() {
     endConversation();
     setMessages([]);
     setErrorMessage(null);
+    setSessionSeconds(0);
+    setLastLatencyMs(null);
   }, [endConversation]);
 
   // Replay a specific message via TTS
@@ -450,20 +560,34 @@ export function useVoiceConversation() {
     [speakText]
   );
 
-  // Audio level simulation during speaking or listening
+  // Keyboard shortcuts (Escape to interrupt, Space to toggle listening when not in input)
   useEffect(() => {
-    if (state !== "speaking" && state !== "listening") {
-      setAudioLevel(0);
-      return;
-    }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
 
-    const interval = setInterval(() => {
-      const level = Math.random() * 0.7 + 0.3;
-      setAudioLevel(level);
-    }, 120);
+      if (e.key === "Escape") {
+        if (state === "speaking") {
+          stopSpeaking();
+          e.preventDefault();
+        } else if (state !== "idle") {
+          endConversation();
+          e.preventDefault();
+        }
+      } else if (e.code === "Space" && e.target === document.body) {
+        e.preventDefault();
+        if (state === "idle") {
+          startConversation();
+        } else if (state === "listening") {
+          commitInterimSpeech();
+        }
+      }
+    };
 
-    return () => clearInterval(interval);
-  }, [state]);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [state, startConversation, commitInterimSpeech, stopSpeaking, endConversation]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -478,8 +602,20 @@ export function useVoiceConversation() {
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      if (audioContextRef.current && audioContextRef.current.state !== "closed") {
+        audioContextRef.current.close().catch(() => {});
+      }
     };
   }, []);
+
+  const formatSessionTime = (secs: number) => {
+    const mins = Math.floor(secs / 60);
+    const remaining = secs % 60;
+    return `${mins.toString().padStart(2, "0")}:${remaining.toString().padStart(2, "0")}`;
+  };
 
   return {
     state,
@@ -490,6 +626,10 @@ export function useVoiceConversation() {
     micPermission,
     continuousMode,
     audioLevel,
+    volumeDb,
+    lastLatencyMs,
+    sessionDuration: formatSessionTime(sessionSeconds),
+    activeModel,
     selectedVoice,
     setContinuousMode,
     startConversation,

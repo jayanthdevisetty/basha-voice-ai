@@ -8,7 +8,7 @@ import { ConversationHistory } from "@/components/ConversationHistory";
 import { SuggestedTopics } from "@/components/SuggestedTopics";
 import { TextInputFallback } from "@/components/TextInputFallback";
 import { MicPermissionBanner } from "@/components/MicPermissionBanner";
-import { Mic, ArrowRight, ShieldCheck, Terminal, Brain, Sparkles, Cpu } from "lucide-react";
+import { Mic, ArrowRight, Shield, Cpu, Activity } from "lucide-react";
 
 export default function Home() {
   const [hasStarted, setHasStarted] = useState(false);
@@ -22,6 +22,10 @@ export default function Home() {
     micPermission,
     continuousMode,
     audioLevel,
+    volumeDb,
+    lastLatencyMs,
+    sessionDuration,
+    activeModel,
     setContinuousMode,
     startConversation,
     endConversation,
@@ -54,108 +58,122 @@ export default function Home() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="flex flex-col min-h-screen bg-[#09090b] text-zinc-100 selection:bg-zinc-800 selection:text-white font-sans antialiased">
       <Header
         showRestart={hasStarted || messages.length > 0}
         onRestart={handleReset}
+        sessionDuration={sessionDuration}
+        turnCount={Math.ceil(messages.length / 2)}
       />
 
-      <main className="flex-1 flex flex-col justify-between max-w-4xl w-full mx-auto px-4 py-6 md:py-10">
+      <main className="flex-1 flex flex-col justify-between max-w-4xl w-full mx-auto px-4 py-6 md:py-8">
         {!hasStarted && messages.length === 0 ? (
           /* ========================================================= */
-          /* LANDING SCREEN (Section 18)                               */
+          /* LANDING SCREEN (Restrained, Advanced, No AI Slop)         */
           /* ========================================================= */
-          <div className="flex-1 flex flex-col items-center justify-center text-center max-w-2xl mx-auto my-auto px-4 py-8">
-            {/* Minimalist Profile Pill */}
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900 border border-zinc-800 text-xs font-mono text-zinc-400 mb-6 tracking-wide">
-              <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-              SHAIK RAMEEZ BASHA
+          <div className="flex-1 flex flex-col items-center justify-center text-center max-w-2xl mx-auto my-auto px-2 py-6">
+            {/* Engineer Profile Chip */}
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded border border-zinc-800 bg-zinc-900/60 text-[11px] font-mono text-zinc-300 mb-6">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span>SHAIK RAMEEZ BASHA // SYSTEMS & AI</span>
             </div>
 
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-white mb-3">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-zinc-100 mb-2 font-sans">
               Basha — Voice AI
             </h1>
 
-            <p className="text-base sm:text-lg text-indigo-300/90 font-medium mb-4">
-              AI/ML • GenAI • Full-Stack Engineering
+            <p className="text-sm font-mono text-zinc-400 mb-4 tracking-tight">
+              Have a conversation with my AI voice agent.
             </p>
 
-            <p className="text-sm sm:text-base text-zinc-400 max-w-lg mb-8 leading-relaxed">
-              Have a natural conversation with my AI voice agent. Ask me about my
-              engineering journey, how I solve problems, what I&apos;m building, or
-              where I want to grow.
+            <p className="text-xs sm:text-sm text-zinc-400 max-w-lg mb-8 leading-relaxed">
+              Real-time conversational agent grounded in my engineering background.
+              Ask me about my systems architecture, how I handle technical ambiguity,
+              what I built on RotorDyn, or where I am growing.
             </p>
 
-            {/* Main Action Button */}
-            <div className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center mb-10">
+            {/* Main Action Trigger */}
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full justify-center mb-8">
               <button
                 onClick={handleStartLanding}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-xl bg-white text-zinc-950 hover:bg-zinc-200 font-medium text-sm transition-all shadow-lg hover:shadow-indigo-500/10 hover:scale-[1.02] active:scale-[0.99]"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 font-medium text-xs transition-all shadow-sm active:scale-[0.99]"
               >
-                <Mic className="w-4 h-4 text-zinc-950" />
-                <span>Start Conversation</span>
-                <ArrowRight className="w-4 h-4" />
+                <Mic className="w-3.5 h-3.5" />
+                <span>Initialize Voice Conversation</span>
+                <ArrowRight className="w-3.5 h-3.5 ml-1 text-zinc-500" />
               </button>
             </div>
 
-            {/* Quick Context Chips */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-lg text-left text-xs text-zinc-400 border-t border-zinc-900 pt-8">
-              <div className="p-3 rounded-lg bg-zinc-900/50 border border-zinc-800/60">
-                <div className="flex items-center gap-1.5 text-zinc-200 font-medium mb-1">
-                  <Cpu className="w-3.5 h-3.5 text-indigo-400" />
-                  RotorDyn & Systems
+            {/* Architecture Telemetry Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 w-full max-w-xl text-left border-t border-zinc-900 pt-6">
+              <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-900">
+                <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider mb-1">
+                  Architecture 01
                 </div>
-                Vibration AI analysis, FastAPI, Supabase, and distributed testing.
+                <div className="text-xs font-semibold text-zinc-200 mb-0.5">
+                  RotorDyn Platform
+                </div>
+                <div className="text-[11px] text-zinc-400 leading-snug">
+                  FastAPI, Supabase, and real-time vibration telemetry diagnostics.
+                </div>
               </div>
 
-              <div className="p-3 rounded-lg bg-zinc-900/50 border border-zinc-800/60">
-                <div className="flex items-center gap-1.5 text-zinc-200 font-medium mb-1">
-                  <Brain className="w-3.5 h-3.5 text-emerald-400" />
-                  #1 Superpower
+              <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-900">
+                <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider mb-1">
+                  Execution 02
                 </div>
-                Turning ambiguous technical problems into concrete, testable systems.
+                <div className="text-xs font-semibold text-zinc-200 mb-0.5">
+                  Core Superpower
+                </div>
+                <div className="text-[11px] text-zinc-400 leading-snug">
+                  Deconstructing ambiguous problems into testable, shipping systems.
+                </div>
               </div>
 
-              <div className="p-3 rounded-lg bg-zinc-900/50 border border-zinc-800/60">
-                <div className="flex items-center gap-1.5 text-zinc-200 font-medium mb-1">
-                  <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                  Honest Growth
+              <div className="p-3 rounded-lg bg-zinc-950 border border-zinc-900">
+                <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider mb-1">
+                  Systems 03
                 </div>
-                Scaling system architecture, disciplined shipping, and boundary-pushing.
+                <div className="text-xs font-semibold text-zinc-200 mb-0.5">
+                  AfterQuery & Reliability
+                </div>
+                <div className="text-[11px] text-zinc-400 leading-snug">
+                  Asynchronous caching, distributed reconciliation, and policy checks.
+                </div>
               </div>
             </div>
 
-            {/* Sample Prompts to Click Directly */}
-            <div className="mt-8 w-full">
+            {/* Shortcut Queries */}
+            <div className="mt-6 w-full">
               <SuggestedTopics onSelectTopic={handleTopicClick} />
             </div>
           </div>
         ) : (
           /* ========================================================= */
-          /* CONVERSATION SCREEN (Section 19)                          */
+          /* CONVERSATION INTERFACE                                    */
           /* ========================================================= */
           <div className="flex-1 flex flex-col justify-start w-full">
-            {/* Identity Bar */}
-            <div className="flex items-center justify-between border-b border-zinc-900 pb-3 mb-2">
+            {/* Identity Status Bar */}
+            <div className="flex items-center justify-between border-b border-zinc-900 pb-2 mb-1 text-[11px] font-mono">
               <div className="flex items-center gap-2">
-                <span className="font-mono text-xs uppercase tracking-wider text-zinc-500 font-medium">
-                  Identity
-                </span>
-                <span className="text-xs text-zinc-300 font-semibold">
+                <span className="text-zinc-500">REPRESENTING:</span>
+                <span className="text-zinc-200 font-semibold">
                   Shaik Rameez Basha
                 </span>
+                <span className="text-zinc-600">·</span>
+                <span className="text-zinc-400">First-Person Autonomous Voice</span>
               </div>
-              <div className="flex items-center gap-3">
+              <div>
                 <button
                   onClick={handleEnd}
-                  className="text-xs text-zinc-400 hover:text-red-400 transition-colors"
+                  className="text-zinc-500 hover:text-red-400 transition-colors"
                 >
-                  End Conversation
+                  End Session [Esc]
                 </button>
               </div>
             </div>
 
-            {/* Permission / Unsupported Warning Banner if needed */}
+            {/* Permission Banner */}
             <MicPermissionBanner
               micPermission={micPermission}
               isSupported={isSupported}
@@ -163,31 +181,34 @@ export default function Home() {
               onRetry={startConversation}
             />
 
-            {/* Centerpiece Voice Visualizer */}
+            {/* Real Audio Canvas Oscilloscope & Volume Meter */}
             <VoiceVisualizer
               state={state}
               interimTranscript={interimTranscript}
               audioLevel={audioLevel}
+              volumeDb={volumeDb}
+              lastLatencyMs={lastLatencyMs}
+              activeModel={activeModel}
               onStart={startConversation}
               onStop={handleEnd}
               onInterrupt={stopSpeaking}
               onCommitSpeech={commitInterimSpeech}
             />
 
-            {/* Conversation Transcript (Scrollable History) */}
+            {/* Transcript Inspector */}
             <ConversationHistory
               messages={messages}
               onReplay={replayMessage}
               onClear={restartConversation}
             />
 
-            {/* Suggested Follow-up Questions */}
+            {/* Short-cut query triggers */}
             <SuggestedTopics
               onSelectTopic={handleTopicClick}
               disabled={state === "thinking"}
             />
 
-            {/* Accessible Text Fallback Input */}
+            {/* Terminal Fallback Input */}
             <TextInputFallback
               onSendMessage={sendMessage}
               state={state}
@@ -197,22 +218,28 @@ export default function Home() {
           </div>
         )}
 
-        {/* Footer info & security badge */}
-        <footer className="mt-10 pt-4 border-t border-zinc-900/80 flex flex-col sm:flex-row items-center justify-between text-[11px] text-zinc-500 gap-2">
+        {/* Minimal Engineering Footer */}
+        <footer className="mt-8 pt-4 border-t border-zinc-900 flex flex-col sm:flex-row items-center justify-between text-[11px] font-mono text-zinc-500 gap-2">
           <div className="flex items-center gap-2">
-            <span>Stage 1 Assessment Submission</span>
-            <span>•</span>
-            <span className="text-zinc-400">100x AI Agent Team</span>
+            <span>100x AI Agent Team</span>
+            <span>·</span>
+            <span className="text-zinc-400">Stage 1 Assessment Submission</span>
           </div>
+
           <div className="flex items-center gap-3">
             <span className="inline-flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3 text-emerald-400" />
-              Server-Side API Protected
+              <Shield className="w-3 h-3 text-zinc-400" />
+              <span>Server-Side Isolated</span>
             </span>
-            <span>•</span>
-            <span className="inline-flex items-center gap-1 font-mono">
-              <Terminal className="w-3 h-3" />
-              Gemini 2.5 Flash
+            <span>·</span>
+            <span className="inline-flex items-center gap-1">
+              <Cpu className="w-3 h-3 text-zinc-400" />
+              <span>Gemini 3.5 Flash Lite</span>
+            </span>
+            <span>·</span>
+            <span className="inline-flex items-center gap-1">
+              <Activity className="w-3 h-3 text-zinc-400" />
+              <span>WebAudio 44.1kHz</span>
             </span>
           </div>
         </footer>

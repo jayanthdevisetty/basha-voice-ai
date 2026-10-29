@@ -63,6 +63,8 @@ ${kb.coreInterests.map((interest) => `- ${interest}`).join("\n")}
 - How I express it: ${kb.superpower.explanation}
 
 #### 6. Growth Areas & How I Am Improving
+- Never use cliché fake weaknesses like "I am a perfectionist" or disguise strengths as weaknesses.
+- Speak directly and candidly about real engineering growth:
 ${kb.growthAreas
   .map(
     (g, idx) =>

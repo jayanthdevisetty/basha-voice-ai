@@ -1,13 +1,16 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { ConversationState } from "@/hooks/useVoiceConversation";
-import { Mic, Volume2, Loader2, AlertCircle, Square, ArrowUp } from "lucide-react";
+import { Mic, MicOff, Square, ArrowUp, Activity, Cpu } from "lucide-react";
 
 interface VoiceVisualizerProps {
   state: ConversationState;
   interimTranscript: string;
   audioLevel: number;
+  volumeDb: number;
+  lastLatencyMs: number | null;
+  activeModel: string;
   onStart: () => void;
   onStop: () => void;
   onInterrupt: () => void;
@@ -18,222 +21,286 @@ export const VoiceVisualizer: React.FC<VoiceVisualizerProps> = ({
   state,
   interimTranscript,
   audioLevel,
+  volumeDb,
+  lastLatencyMs,
+  activeModel,
   onStart,
   onStop,
   onInterrupt,
   onCommitSpeech,
 }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // High-precision canvas audio spectrum / oscilloscope rendering
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    let animationId: number;
+    let phase = 0;
+
+    const render = () => {
+      phase += 0.04;
+      const width = canvas.width;
+      const height = canvas.height;
+
+      ctx.clearRect(0, 0, width, height);
+
+      // Background technical subtle grid lines
+      ctx.strokeStyle = "rgba(39, 39, 42, 0.4)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, height / 2);
+      ctx.lineTo(width, height / 2);
+      ctx.stroke();
+
+      if (state === "listening" || state === "speaking") {
+        // Multi-frequency harmonic waveform
+        const numWaves = 3;
+        for (let w = 0; w < numWaves; w++) {
+          ctx.beginPath();
+          ctx.lineWidth = w === 0 ? 2 : 1;
+          ctx.strokeStyle =
+            state === "listening"
+              ? w === 0
+                ? "rgba(16, 185, 129, 0.9)"
+                : "rgba(16, 185, 129, 0.25)"
+              : w === 0
+              ? "rgba(244, 244, 245, 0.95)"
+              : "rgba(161, 161, 170, 0.3)";
+
+          const sliceWidth = width / 64;
+          let x = 0;
+
+          for (let i = 0; i <= 64; i++) {
+            const freq = 0.05 + w * 0.02;
+            const amp = (audioLevel * (height * 0.38) + 4) * (1 - w * 0.25);
+            const y =
+              height / 2 +
+              Math.sin(i * freq + phase * (w % 2 === 0 ? 1 : -1)) *
+                Math.sin((i / 64) * Math.PI) *
+                amp;
+
+            if (i === 0) {
+              ctx.moveTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+            }
+            x += sliceWidth;
+          }
+          ctx.stroke();
+        }
+      } else if (state === "thinking") {
+        // Precision radar scanning sweep
+        const radius = Math.min(width, height) * 0.32;
+        const centerX = width / 2;
+        const centerY = height / 2;
+
+        ctx.strokeStyle = "rgba(99, 102, 241, 0.3)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(168, 85, 247, 0.9)";
+        ctx.lineWidth = 2;
+        const sweepAngle = phase * 1.5;
+        ctx.arc(centerX, centerY, radius, sweepAngle, sweepAngle + Math.PI * 0.5);
+        ctx.stroke();
+      } else {
+        // Idle baseline calm oscilloscope line
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(82, 82, 91, 0.6)";
+        ctx.lineWidth = 1.5;
+        const sliceWidth = width / 32;
+        let x = 0;
+        for (let i = 0; i <= 32; i++) {
+          const y = height / 2 + Math.sin(i * 0.2 + phase * 0.5) * 2;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+          x += sliceWidth;
+        }
+        ctx.stroke();
+      }
+
+      animationId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      cancelAnimationFrame(animationId);
+    };
+  }, [state, audioLevel]);
+
   return (
-    <div className="flex flex-col items-center justify-center w-full max-w-xl mx-auto py-8">
-      {/* Central Visual Orb */}
-      <div className="relative flex items-center justify-center w-48 h-48 md:w-56 md:h-56 my-4">
-        {/* Ambient Glow Rings */}
-        <div
-          className={`absolute inset-0 rounded-full transition-all duration-700 blur-2xl opacity-40 ${
-            state === "listening"
-              ? "bg-emerald-500 scale-110"
-              : state === "speaking"
-              ? "bg-indigo-500 scale-125"
-              : state === "thinking"
-              ? "bg-purple-500 scale-105 animate-pulse"
-              : state === "error"
-              ? "bg-amber-500 scale-95"
-              : "bg-zinc-700 scale-90"
-          }`}
-        />
+    <div className="w-full max-w-2xl mx-auto my-4 bg-zinc-950 border border-zinc-800 rounded-xl p-5 shadow-sm font-sans">
+      {/* Top Telemetry Header Bar */}
+      <div className="flex items-center justify-between border-b border-zinc-900 pb-3 mb-4 text-[11px] font-mono text-zinc-400">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`w-2 h-2 rounded-full ${
+                state === "listening"
+                  ? "bg-emerald-400 animate-pulse"
+                  : state === "speaking"
+                  ? "bg-zinc-100 animate-pulse"
+                  : state === "thinking"
+                  ? "bg-indigo-400 animate-spin"
+                  : state === "error"
+                  ? "bg-amber-400"
+                  : "bg-zinc-600"
+              }`}
+            />
+            <span className="font-semibold uppercase tracking-wider text-zinc-200">
+              {state === "listening"
+                ? "REC // AUDIO IN"
+                : state === "thinking"
+                ? "INFERENCE // GEMINI"
+                : state === "speaking"
+                ? "PLAYBACK // SYNTHESIS"
+                : state === "error"
+                ? "FAULT // RECOVERY"
+                : "STANDBY // IDLE"}
+            </span>
+          </div>
+          <span className="text-zinc-600">|</span>
+          <div className="hidden sm:flex items-center gap-1 text-zinc-400">
+            <Cpu className="w-3 h-3 text-zinc-500" />
+            <span>{activeModel.replace("models/", "")}</span>
+          </div>
+        </div>
 
-        {/* Outer Ring */}
-        <div
-          className={`absolute inset-2 rounded-full border transition-all duration-500 flex items-center justify-center ${
-            state === "listening"
-              ? "border-emerald-500/50 scale-105"
-              : state === "speaking"
-              ? "border-indigo-500/60 scale-110"
-              : state === "thinking"
-              ? "border-purple-500/40 animate-spin"
-              : state === "error"
-              ? "border-amber-500/40"
-              : "border-zinc-800"
-          }`}
-        />
-
-        {/* Core Interactive Center Button / Display */}
-        <div
-          className={`relative z-10 w-36 h-36 md:w-40 md:h-40 rounded-full flex flex-col items-center justify-center transition-all duration-300 shadow-2xl ${
-            state === "listening"
-              ? "bg-gradient-to-b from-zinc-900 to-emerald-950/40 border border-emerald-500/50 shadow-emerald-500/20"
-              : state === "speaking"
-              ? "bg-gradient-to-b from-zinc-900 to-indigo-950/40 border border-indigo-500/50 shadow-indigo-500/20"
-              : state === "thinking"
-              ? "bg-gradient-to-b from-zinc-900 to-purple-950/40 border border-purple-500/50 shadow-purple-500/20"
-              : state === "error"
-              ? "bg-gradient-to-b from-zinc-900 to-amber-950/40 border border-amber-500/50 shadow-amber-500/20"
-              : "bg-zinc-900 border border-zinc-800 hover:border-zinc-700 shadow-black/40"
-          }`}
-        >
-          {state === "idle" && (
-            <button
-              onClick={onStart}
-              className="flex flex-col items-center justify-center w-full h-full text-zinc-300 hover:text-white transition-colors group"
-              aria-label="Start Conversation"
-            >
-              <Mic className="w-9 h-9 mb-2 text-zinc-400 group-hover:text-white transition-transform group-hover:scale-110" />
-              <span className="text-xs font-medium uppercase tracking-wider text-zinc-400 group-hover:text-zinc-200">
-                Start
-              </span>
-            </button>
-          )}
-
-          {state === "listening" && (
-            <div className="flex flex-col items-center justify-center">
-              <div className="flex items-center gap-1.5 h-8 mb-2">
-                {[0.4, 0.8, 1, 0.7, 0.5].map((scale, i) => (
-                  <span
-                    key={i}
-                    className="w-1 bg-emerald-400 rounded-full transition-all duration-150"
-                    style={{
-                      height: `${Math.max(6, (audioLevel * scale * 32) + 4)}px`,
-                    }}
-                  />
-                ))}
-              </div>
-              <span className="text-xs font-medium text-emerald-400 animate-pulse">
-                Listening...
-              </span>
+        <div className="flex items-center gap-3">
+          {lastLatencyMs && (
+            <div className="flex items-center gap-1 text-zinc-400">
+              <Activity className="w-3 h-3 text-zinc-500" />
+              <span>{lastLatencyMs}ms</span>
             </div>
           )}
-
-          {state === "thinking" && (
-            <div className="flex flex-col items-center justify-center">
-              <Loader2 className="w-8 h-8 text-purple-400 animate-spin mb-2" />
-              <span className="text-xs font-medium text-purple-300">
-                Thinking...
-              </span>
-            </div>
-          )}
-
-          {state === "speaking" && (
-            <div className="flex flex-col items-center justify-center">
-              <div className="flex items-center gap-1.5 h-8 mb-2">
-                {[0.6, 1, 0.8, 0.9, 0.5, 0.7].map((scale, i) => (
-                  <span
-                    key={i}
-                    className="w-1 bg-indigo-400 rounded-full transition-all duration-150"
-                    style={{
-                      height: `${Math.max(6, (audioLevel * scale * 28) + 6)}px`,
-                    }}
-                  />
-                ))}
-              </div>
-              <span className="text-xs font-medium text-indigo-400">
-                Speaking...
-              </span>
-            </div>
-          )}
-
-          {state === "error" && (
-            <button
-              onClick={onStart}
-              className="flex flex-col items-center justify-center text-amber-400 hover:text-amber-300 transition-colors"
-              aria-label="Retry conversation"
-            >
-              <AlertCircle className="w-8 h-8 mb-1" />
-              <span className="text-xs font-medium">Try Again</span>
-            </button>
-          )}
+          <span className="text-zinc-600">|</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-zinc-500">LEVEL</span>
+            <span className="text-zinc-300 font-mono w-12 text-right">
+              {volumeDb} dB
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* State Label & Subtext */}
-      <div className="text-center mt-2 min-h-[56px] px-4 max-w-md">
-        {state === "idle" && (
-          <div>
-            <h3 className="text-base font-medium text-zinc-200">Ready to talk</h3>
-            <p className="text-xs text-zinc-500 mt-1">
-              Click the microphone or press Start Conversation to begin.
-            </p>
-          </div>
-        )}
+      {/* Main Canvas Waveform Display */}
+      <div className="relative w-full h-32 bg-zinc-900/60 border border-zinc-900 rounded-lg overflow-hidden flex items-center justify-center">
+        <canvas
+          ref={canvasRef}
+          width={640}
+          height={128}
+          className="w-full h-full block"
+        />
 
+        {/* Interim Speech Overlay in Real Time */}
         {state === "listening" && (
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium mb-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-              Listening... Speak naturally
-            </div>
+          <div className="absolute inset-x-4 bottom-3 pointer-events-none">
             {interimTranscript ? (
-              <p className="text-sm text-zinc-300 italic font-sans break-words bg-zinc-900/60 py-1.5 px-3 rounded-lg border border-zinc-800">
-                &ldquo;{interimTranscript}&rdquo;
+              <p className="text-xs text-zinc-200 font-mono truncate bg-zinc-950/80 px-2.5 py-1 rounded border border-zinc-800 backdrop-blur-sm">
+                &gt; {interimTranscript}
               </p>
             ) : (
-              <p className="text-xs text-zinc-400">
-                I am listening. Ask me about my projects, superpower, or growth areas.
+              <p className="text-[11px] text-zinc-500 font-mono tracking-wide">
+                Listening for audio stream...
               </p>
             )}
           </div>
         )}
 
         {state === "thinking" && (
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-medium">
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />
-              Reflecting on my knowledge base...
-            </div>
-          </div>
-        )}
-
-        {state === "speaking" && (
-          <div className="flex flex-col items-center gap-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-medium">
-              <Volume2 className="w-3.5 h-3.5 text-indigo-400 animate-pulse" />
-              Speaking...
-            </div>
-            <button
-              onClick={onInterrupt}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs text-zinc-400 hover:text-white bg-zinc-800/80 hover:bg-zinc-700/80 rounded-md border border-zinc-700 transition-colors"
-            >
-              <Square className="w-3 h-3 text-red-400 fill-red-400" />
-              Interrupt
-            </button>
-          </div>
-        )}
-
-        {state === "error" && (
-          <div>
-            <p className="text-sm text-amber-300 font-medium">
-              I couldn&apos;t hear that clearly.
-            </p>
-            <p className="text-xs text-zinc-500 mt-1">
-              Click Try Again or send your question using the text box below.
+          <div className="absolute inset-x-4 bottom-3 pointer-events-none">
+            <p className="text-[11px] text-zinc-400 font-mono tracking-wide">
+              Executing neural inference on personal knowledge base...
             </p>
           </div>
         )}
       </div>
 
-      {/* Immediate Commit Button when speech is captured */}
-      {state === "listening" && interimTranscript && (
-        <div className="mt-3 flex items-center gap-2">
-          <button
-            onClick={onCommitSpeech}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-500 text-black hover:bg-emerald-400 transition-colors shadow-sm"
-          >
-            <ArrowUp className="w-3.5 h-3.5" />
-            Send Now
-          </button>
+      {/* Real-time Hardware Volume Peak Bar */}
+      <div className="w-full mt-3 flex items-center gap-2">
+        <span className="text-[10px] font-mono text-zinc-500 w-10 shrink-0">
+          dBFS
+        </span>
+        <div className="flex-1 h-1.5 bg-zinc-900 rounded-full overflow-hidden flex gap-0.5">
+          {Array.from({ length: 32 }).map((_, idx) => {
+            const threshold = (idx / 32) * 60 - 60;
+            const isActive = volumeDb >= threshold && state !== "idle";
+            const isHot = idx > 26;
+            return (
+              <div
+                key={idx}
+                className={`flex-1 rounded-sm transition-all duration-75 ${
+                  isActive
+                    ? isHot
+                      ? "bg-amber-400"
+                      : "bg-emerald-400"
+                    : "bg-zinc-800/60"
+                }`}
+              />
+            );
+          })}
         </div>
-      )}
+        <span className="text-[10px] font-mono text-zinc-500 shrink-0">
+          0dB
+        </span>
+      </div>
 
-      {/* Quick Controls Bar */}
-      {state !== "idle" && (
-        <div className="mt-4 flex items-center gap-3">
-          <button
-            onClick={onStop}
-            className="px-3.5 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-lg transition-colors"
-          >
-            Pause Conversation
-          </button>
+      {/* Action Controls Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-3 border-t border-zinc-900">
+        <div className="flex items-center gap-2">
+          {state === "idle" ? (
+            <button
+              onClick={onStart}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-medium transition-colors shadow-sm"
+            >
+              <Mic className="w-3.5 h-3.5" />
+              <span>Initialize Voice Agent</span>
+            </button>
+          ) : (
+            <button
+              onClick={onStop}
+              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-800 text-xs font-medium transition-colors"
+            >
+              <MicOff className="w-3.5 h-3.5 text-zinc-400" />
+              <span>Standby Mode</span>
+            </button>
+          )}
+
+          {state === "speaking" && (
+            <button
+              onClick={onInterrupt}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-red-400 border border-zinc-800 text-xs font-medium transition-colors"
+            >
+              <Square className="w-3 h-3 fill-current" />
+              <span>Interrupt (Esc)</span>
+            </button>
+          )}
+
+          {state === "listening" && interimTranscript && (
+            <button
+              onClick={onCommitSpeech}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-medium transition-colors"
+            >
+              <ArrowUp className="w-3.5 h-3.5" />
+              <span>Send Now</span>
+            </button>
+          )}
         </div>
-      )}
+
+        <div className="hidden sm:flex items-center gap-3 text-[11px] text-zinc-500 font-mono">
+          <span>[Space] Talk / Send</span>
+          <span>•</span>
+          <span>[Esc] Interrupt</span>
+        </div>
+      </div>
     </div>
   );
 };

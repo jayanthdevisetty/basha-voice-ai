@@ -1,53 +1,63 @@
 "use client";
 
 import React from "react";
-import { Sparkles, RotateCcw } from "lucide-react";
+import { RotateCcw, Clock } from "lucide-react";
 
 interface HeaderProps {
   onRestart?: () => void;
   showRestart?: boolean;
+  sessionDuration?: string;
+  turnCount?: number;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onRestart, showRestart = false }) => {
+export const Header: React.FC<HeaderProps> = ({
+  onRestart,
+  showRestart = false,
+  sessionDuration = "00:00",
+  turnCount = 0,
+}) => {
   return (
-    <header className="w-full border-b border-zinc-800/80 bg-zinc-950/70 backdrop-blur-md sticky top-0 z-50">
+    <header className="w-full border-b border-zinc-900 bg-zinc-950/90 backdrop-blur-md sticky top-0 z-50">
       <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+        {/* Brand & Identity */}
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-700/80 flex items-center justify-center font-mono font-semibold text-xs text-zinc-100 shadow-inner">
+          <div className="w-7 h-7 rounded border border-zinc-800 bg-zinc-900 flex items-center justify-center font-mono font-medium text-xs text-zinc-200">
             RB
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-sm font-semibold tracking-tight text-zinc-100">
-                Basha — Voice AI
-              </h1>
-              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
-                Live
+              <span className="text-xs font-semibold tracking-tight text-zinc-100">
+                Shaik Rameez Basha
               </span>
+              <span className="text-zinc-600">/</span>
+              <span className="text-xs font-mono text-zinc-400">Voice AI</span>
             </div>
-            <p className="text-[11px] text-zinc-400">
-              Have a conversation with my AI voice agent.
-            </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Telemetry & Actions */}
+        <div className="flex items-center gap-3 text-[11px] font-mono">
+          <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded border border-zinc-900 bg-zinc-900/40 text-zinc-400">
+            <Clock className="w-3 h-3 text-zinc-500" />
+            <span>{sessionDuration}</span>
+          </div>
+
+          {turnCount > 0 && (
+            <div className="hidden sm:flex items-center px-2 py-1 rounded border border-zinc-900 bg-zinc-900/40 text-zinc-400">
+              <span>TURNS: {turnCount.toString().padStart(2, "0")}</span>
+            </div>
+          )}
+
           {showRestart && onRestart && (
             <button
               onClick={onRestart}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs text-zinc-400 hover:text-zinc-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition-colors"
-              title="Restart session"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white transition-colors"
+              title="Reset conversation state"
             >
-              <RotateCcw className="w-3 h-3" />
-              <span className="hidden sm:inline">Reset</span>
+              <RotateCcw className="w-3 h-3 text-zinc-400" />
+              <span>Reset</span>
             </button>
           )}
-
-          <div className="hidden sm:flex items-center gap-1 text-[11px] text-zinc-500 font-mono px-2 py-1 rounded bg-zinc-900/50 border border-zinc-800/50">
-            <Sparkles className="w-3 h-3 text-indigo-400" />
-            <span>100x AI Assessment</span>
-          </div>
         </div>
       </div>
     </header>
