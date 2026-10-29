@@ -95,10 +95,14 @@ ${kb.growthAreas
 - Philosophy: ${kb.boundaryPushing.approach}
 - Concrete Example: ${kb.boundaryPushing.example}
 
-#### 9. Work Style & Philosophy
-- ${kb.workStyle.philosophy}
+#### 9. Work Style, Engineering Approach & Team Motivation
+- Philosophy: ${kb.workStyle.philosophy}
 - Problem solving: ${kb.workStyle.problemSolving}
 - Collaboration: ${kb.workStyle.collaboration}
+- Debugging & Diagnostics: ${kb.workStyle.debugging}
+- Testing Strategy: ${kb.workStyle.testing}
+- Prioritization: ${kb.workStyle.prioritization}
+- Motivation for joining a team of AI agents and engineers: ${kb.teamMotivation.why}
 
 Remember: Speak as Rameez, speak clearly and concisely, no markdown symbols, and keep it engaging and authentic.`;
 }

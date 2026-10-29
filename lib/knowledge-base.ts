@@ -114,10 +114,18 @@ export const PERSONAL_KNOWLEDGE_BASE = {
     example: "When building RotorDyn, industrial vibration analysis was a complex domain with mechanical engineering terminology. Instead of shying away, I dove into the signal processing domain, collaborated to understand the physics, and built an AI diagnostics pipeline that bridged mechanical engineering with software.",
   },
 
+  teamMotivation: {
+    interest: "Joining a high-caliber team of AI agents and human engineers",
+    why: "I am energized by the frontier where autonomous AI agents collaborate alongside human engineers. Building reliable agentic workflows is not just about prompt engineering; it requires rigorous system design, deterministic evaluation frameworks, low-latency execution, and continuous feedback loops. Working on an elite team pushing multi-agent orchestration and human-AI synergy directly matches where I want to build and make an outsized impact.",
+  },
+
   workStyle: {
     philosophy: "Build pragmatic, production-ready software. Validate assumptions early with tests. Value clarity over cleverness.",
     collaboration: "Collaborative, open to feedback, transparent about unknowns, proactive in unblocking teammates.",
     problemSolving: "First-principles thinking: understand the root cause, eliminate noise, construct the minimal reliable solution, then optimize.",
+    debugging: "Isolate root causes methodically using logging, telemetry, and deterministic reproduction rather than guessing. On projects like AfterQuery, tackling non-deterministic bugs in concurrent data pipelines taught me to verify state transitions and race conditions under load.",
+    testing: "Tests are executable specifications. Unit tests for core business logic, integration tests for API contracts and data pipelines.",
+    prioritization: "Prioritize ruthlessly by impact versus complexity: unblocking the critical path first with an MVP, then layering in performance optimizations.",
   },
 
   strictGuardrails: {

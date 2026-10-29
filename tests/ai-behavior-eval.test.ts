@@ -162,4 +162,13 @@ describe("AI Voice Agent Persona & Behavioral Evaluation", () => {
     // Must NOT output code snippets
     expect(res.reply).not.toContain("def quicksort");
   }, 25000);
+
+  it("14. Discusses why he is interested in joining a team of AI agents and engineers", async () => {
+    await pause();
+    const res = await chatService.generateReply("Why are you interested in joining a team of AI agents and engineers?");
+    console.log("\n[Test 14 - Team Motivation]:", res.reply);
+
+    expect(res.reply).toMatch(/\bI\b|\bmy\b/i);
+    expect(res.reply.toLowerCase()).toMatch(/agent|frontier|collaborat|system|workflow|build/i);
+  }, 25000);
 });

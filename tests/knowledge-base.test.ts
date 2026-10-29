@@ -29,6 +29,13 @@ describe("Personal Knowledge Base Verification", () => {
     expect(PERSONAL_KNOWLEDGE_BASE.boundaryPushing.approach).toBeDefined();
   });
 
+  it("defines team motivation and engineering approach", () => {
+    expect(PERSONAL_KNOWLEDGE_BASE.teamMotivation.why).toContain("autonomous AI agents");
+    expect(PERSONAL_KNOWLEDGE_BASE.workStyle.debugging).toContain("root cause");
+    expect(PERSONAL_KNOWLEDGE_BASE.workStyle.testing).toBeDefined();
+    expect(PERSONAL_KNOWLEDGE_BASE.workStyle.prioritization).toBeDefined();
+  });
+
   it("enforces strict anti-hallucination guardrails", () => {
     expect(PERSONAL_KNOWLEDGE_BASE.strictGuardrails.rule).toContain("NEVER hallucinate");
   });
